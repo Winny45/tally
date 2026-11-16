@@ -1,4 +1,4 @@
-import { NON_SPEND } from './categories'
+import { merchantKey, merchantName, NON_SPEND } from './categories'
 import type { Account, Frequency, Recurring, Tables, Txn } from './types'
 import { addDays, addMonths, daysBetween, fmtDate, monthStart, round2, sum, today, weekStart } from './util'
 
@@ -85,7 +85,7 @@ export function upcoming(recurring: Recurring[], days: number) {
     .filter(x => x.due <= limit).sort((a, b) => a.due.localeCompare(b.due))
 }
 
-const norm = (s: string) => s.toLowerCase().replace(/[0-9*#]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 24)
+const norm = merchantKey
 const median = (ns: number[]) => [...ns].sort((a, b) => a - b)[Math.floor(ns.length / 2)]
 
 /** Finds payments that repeat on a regular rhythm and aren't already tracked. */
@@ -93,7 +93,7 @@ export function detectRecurring(db: Tables): Omit<Recurring, 'id'>[] {
   const known = new Set(db.recurring.map(r => norm(r.name)))
   const groups = new Map<string, Txn[]>()
   for (const t of db.transactions) {
-    if (t.amount >= 0 || NON_SPEND.has(t.category)) continue
+    if (t.amount >= 0 || NON_SPEND.has(t.category) || t.category === 'People') continue
     const k = norm(t.description)
     if (!k) continue
     groups.set(k, [...(groups.get(k) ?? []), t])
@@ -117,7 +117,7 @@ export function detectRecurring(db: Tables): Omit<Recurring, 'id'>[] {
     if (daysBetween(last.date, today()) > gap * 2 + 10) continue // stopped
     const category = last.category || 'Other'
     out.push({
-      name: last.description, amount: round2(-last.amount), frequency, category, active: true,
+      name: merchantName(last.description), amount: round2(-last.amount), frequency, category, active: true,
       kind: category === 'Subscriptions' || category === 'Entertainment' || category === 'Health & fitness' ? 'subscription'
         : category === 'Bills & utilities' || category === 'Housing' ? 'bill' : 'essential',
       next_due: advance(last.date, frequency),
@@ -164,7 +164,7 @@ export function insights(db: Tables): Insight[] {
   for (const x of txns) {
     if (!isSpend(x) || x.date < from90 || -x.amount > 15) continue
     const k = norm(x.description)
-    const cur = small.get(k) ?? { n: 0, total: 0, name: x.description }
+    const cur = small.get(k) ?? { n: 0, total: 0, name: merchantName(x.description) }
     small.set(k, { ...cur, n: cur.n + 1, total: cur.total - x.amount })
   }
   const habit = [...small].filter(([, v]) => v.n >= 12).sort((a, b) => b[1].total - a[1].total)[0]

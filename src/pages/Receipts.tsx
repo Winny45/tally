@@ -103,8 +103,8 @@ export default function Receipts() {
   const [open, setOpen] = useState<Receipt | null | 'new'>(null)
   const rows = [...db.receipts].sort((a, b) => b.date.localeCompare(a.date))
   return (
-    <Page title="Receipts" actions={<button className="primary" onClick={() => setOpen('new')}>Add receipt</button>}>
-      {!rows.length ? <div className="card"><Empty title="No receipts yet">Snap or upload a receipt to keep proof of purchase next to the transaction it belongs to.</Empty></div>
+    <Page title="Receipts" subtitle="Proof of purchase, kept with the payment it belongs to." actions={<button className="primary" onClick={() => setOpen('new')}>Add receipt</button>}>
+      {!rows.length ? <div className="card"><Empty title="No receipts yet" emoji="🧾">Snap or upload a receipt to keep proof of purchase next to the transaction it belongs to.</Empty></div>
         : <div className="receipts">{rows.map(r => <Card key={r.id} r={r} onOpen={() => setOpen(r)} />)}</div>}
       {open && <ReceiptModal receipt={open === 'new' ? null : open} onClose={() => setOpen(null)} />}
     </Page>

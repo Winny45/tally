@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { bank, cloudBackend, localBackend, supabase } from './backend'
-import { categorise } from './categories'
+import { smartSort } from './categories'
 import { demoFeed } from './demo'
 import { emptyTables, TABLE_NAMES } from './types'
 import type { Account, TableName, Tables, Txn } from './types'
@@ -28,6 +28,8 @@ interface Store {
   syncBanks(quiet?: boolean): Promise<void>
   reload(): Promise<void>
 }
+
+const RULES_VERSION = '3'
 
 const Ctx = createContext<Store | null>(null)
 export const useStore = () => useContext(Ctx)!
@@ -96,9 +98,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const reload = useCallback(async () => {
     const t = await backend.load()
     setDb(t)
-    // Bank feeds arrive uncategorised; label them here so one rule set serves every source.
-    const blank = t.transactions.filter(x => !x.category).map(x => ({ ...x, category: categorise(x.description, x.amount) }))
-    if (blank.length) await save('transactions', blank)
+    // Bank feeds arrive uncategorised; sort them here so one rule set serves every source.
+    // When the rules improve, catch-all categories are re-examined once per device.
+    let upgraded = true
+    try { upgraded = localStorage.getItem('tally-rules') === RULES_VERSION } catch { /* storage unavailable */ }
+    const changed = smartSort(t, !upgraded)
+    if (changed.length) await save('transactions', changed)
+    try { localStorage.setItem('tally-rules', RULES_VERSION) } catch { /* storage unavailable */ }
   }, [backend, save])
 
   const replaceAll = useCallback(async (t: Tables) => {

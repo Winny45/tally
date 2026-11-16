@@ -30,7 +30,7 @@ export default function Forecast() {
   const horizon = HORIZONS.find(h => h[0] === months)![1]
 
   return (
-    <Page title="Forecast" actions={<Segmented value={months} onChange={setMonths} options={HORIZONS} />}>
+    <Page title="Forecast" subtitle="Where you are heading if things carry on like this." actions={<Segmented value={months} onChange={setMonths} options={HORIZONS} />}>
       <div className="grid cols-4">
         <Stat label="Net worth today" value={money0(now)} />
         <Stat label={`In ${horizon}`} value={money0(end.current)} tone={end.current >= now ? 'good' : 'bad'} sub={`${end.current >= now ? '+' : '−'}${money0(Math.abs(end.current - now))}`} />

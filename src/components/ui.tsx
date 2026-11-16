@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import type { ReactNode } from 'react'
-import { CATEGORIES } from '../lib/categories'
+import type { CSSProperties } from 'react'
+import { CATEGORIES, metaFor } from '../lib/categories'
 import { money } from '../lib/util'
 
 export function Modal({ title, onClose, children, footer }: { title: string; onClose(): void; children: ReactNode; footer?: ReactNode }) {
@@ -38,13 +39,30 @@ export const Stat = ({ label, value, sub, tone }: { label: string; value: string
   <div className="card stat"><span className="stat-label">{label}</span><strong className={tone ?? ''}>{value}</strong>{sub && <span className="stat-sub">{sub}</span>}</div>
 )
 
-export const Empty = ({ title, children }: { title: string; children?: ReactNode }) => (
-  <div className="empty"><strong>{title}</strong>{children && <p>{children}</p>}</div>
+export const Empty = ({ title, children, emoji = '✨' }: { title: string; children?: ReactNode; emoji?: string }) => (
+  <div className="empty"><span className="emoji" aria-hidden="true">{emoji}</span><strong>{title}</strong>{children && <p>{children}</p>}</div>
 )
 
-export const Page = ({ title, actions, children }: { title: string; actions?: ReactNode; children: ReactNode }) => (
-  <div className="page"><div className="page-head"><h1>{title}</h1><div className="actions">{actions}</div></div>{children}</div>
+export const Page = ({ title, subtitle, actions, children }: { title: string; subtitle?: string; actions?: ReactNode; children: ReactNode }) => (
+  <div className="page"><div className="page-head"><div><h1>{title}</h1>{subtitle && <p>{subtitle}</p>}</div><div className="actions">{actions}</div></div>{children}</div>
 )
+
+/** Category icon on a soft tint of that category's colour. */
+export const CatIcon = ({ category, small }: { category: string; small?: boolean }) => {
+  const m = metaFor(category)
+  return <span className={`chip ${small ? 'sm' : ''}`} style={{ '--h': m.hue } as CSSProperties} aria-hidden="true">{m.icon}</span>
+}
+
+const BANK_COLOURS: [RegExp, string][] = [
+  [/monzo/i, '#ff5a4d'], [/natwest|rbs/i, '#5a287d'], [/chase/i, '#117aca'], [/vanguard/i, '#96151d'], [/starling/i, '#6935d3'],
+  [/revolut/i, '#191c1f'], [/barclay/i, '#00aeef'], [/hsbc/i, '#db0011'], [/lloyds/i, '#006a4d'], [/santander/i, '#ec0000'],
+  [/nationwide/i, '#1d3c7d'], [/halifax/i, '#005eb8'], [/amex|american express/i, '#016fd0'],
+]
+/** Initial on the bank's own colour, so accounts are recognisable at a glance. */
+export const BankDot = ({ name }: { name: string }) => {
+  const colour = BANK_COLOURS.find(([re]) => re.test(name))?.[1] ?? 'var(--accent)'
+  return <span className="bank" style={{ background: colour }} aria-hidden="true">{(name.trim().charAt(0) || '£').toUpperCase()}</span>
+}
 
 export const CategorySelect = ({ value, onChange, all }: { value: string; onChange(v: string): void; all?: string }) => (
   <select value={value} onChange={e => onChange(e.target.value)}>
@@ -53,13 +71,14 @@ export const CategorySelect = ({ value, onChange, all }: { value: string; onChan
   </select>
 )
 
-/** Ranked horizontal bars: one hue, value labelled on every row. */
-export function BarList({ rows, max }: { rows: { label: string; value: number; sub?: string }[]; max?: number }) {
+/** Ranked horizontal bars: one hue, value labelled on every row. `icons` shows the category chip. */
+export function BarList({ rows, max, icons }: { rows: { label: string; value: number; sub?: string }[]; max?: number; icons?: boolean }) {
   const top = max ?? Math.max(1, ...rows.map(r => r.value))
   return (
     <ul className="barlist">
       {rows.map(r => (
-        <li key={r.label}>
+        <li key={r.label} className={icons ? '' : 'plain'}>
+          {icons && <CatIcon category={r.label} small />}
           <div className="barlist-row"><span>{r.label}{r.sub && <em> · {r.sub}</em>}</span><span className="num">{money(r.value)}</span></div>
           <div className="track"><div className="fill" style={{ width: `${Math.min(100, (r.value / top) * 100)}%` }} /></div>
         </li>

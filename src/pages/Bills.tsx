@@ -50,7 +50,7 @@ export default function Bills() {
   const dueSoon = out.map(r => ({ r, due: nextDue(r) })).filter(x => daysBetween(today(), x.due) <= 30)
 
   return (
-    <Page title="Bills and subscriptions" actions={<button className="primary" onClick={() => setEditing({ kind })}>Add</button>}>
+    <Page title="Bills and subscriptions" subtitle="What goes out regularly, and when." actions={<button className="primary" onClick={() => setEditing({ kind })}>Add</button>}>
       <div className="grid cols-4">
         <Stat label="Committed each month" value={money(monthly)} sub={`${out.length} regular payments`} />
         <Stat label="Per year" value={money(monthly * 12)} />

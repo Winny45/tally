@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { CategorySelect, Empty, Field, Modal, num, Page } from '../components/ui'
-import { categorise } from '../lib/categories'
+import { CategorySelect, CatIcon, Empty, Field, Modal, num, Page } from '../components/ui'
+import { categorise, merchantKey, merchantName } from '../lib/categories'
 import { useStore } from '../lib/store'
 import type { Txn } from '../lib/types'
 import { fmtDate, fmtDay, money, round2, sum, today, uid } from '../lib/util'
@@ -11,9 +11,9 @@ export function TxnRow({ t, onClick, showDate }: { t: Txn; onClick?(): void; sho
   const hasReceipt = db.receipts.some(r => r.transaction_id === t.id)
   return (
     <li className={onClick ? 'click' : ''} onClick={onClick}>
-      <div className="dot" aria-hidden="true">{t.description.charAt(0).toUpperCase()}</div>
+      <CatIcon category={t.category || 'Other'} />
       <div className="row-main">
-        <b>{t.description}</b>
+        <b>{merchantName(t.description)}</b>
         <small>{showDate && `${fmtDate(t.date)} · `}{t.category || 'Uncategorised'}{acc && ` · ${acc.name}`}{hasReceipt && ' · 🧾 receipt'}</small>
       </div>
       <span className={`num ${t.amount > 0 ? 'good' : ''}`}>{t.amount > 0 ? '+' : ''}{money(t.amount)}</span>
@@ -22,7 +22,8 @@ export function TxnRow({ t, onClick, showDate }: { t: Txn; onClick?(): void; sho
 }
 
 export function TxnModal({ txn, onClose }: { txn: Txn | null; onClose(): void }) {
-  const { db, saveTxn, deleteTxn } = useStore()
+  const { db, save, saveTxn, deleteTxn, toast } = useStore()
+  const [applyAll, setApplyAll] = useState(true)
   const [f, setF] = useState(() => ({
     description: txn?.description ?? '', amount: txn ? String(Math.abs(txn.amount)) : '', out: txn ? txn.amount < 0 : true,
     date: txn?.date ?? today(), account_id: txn?.account_id ?? db.accounts[0]?.id ?? '', category: txn?.category ?? '', notes: txn?.notes ?? '',
@@ -36,9 +37,20 @@ export function TxnModal({ txn, onClose }: { txn: Txn | null; onClose(): void })
       description: f.description.trim(), amount, date: f.date, account_id: f.account_id, notes: f.notes,
       category: f.category || categorise(f.description, amount),
     }, txn ?? undefined)
+    if (changedCategory && applyAll && siblings.length) {
+      await save('transactions', siblings.map(t => ({ ...t, category: f.category })))
+      toast(`${siblings.length + 1} ${merchantName(txn!.description)} transactions are now ${f.category}`)
+    }
     onClose()
   }
   const receipt = txn && db.receipts.find(r => r.transaction_id === txn.id)
+  // Changing a category teaches the app: the same merchant's other transactions follow, and so do future ones.
+  const changedCategory = !!txn && !!f.category && f.category !== txn.category
+  const siblings = useMemo(() => {
+    if (!txn) return []
+    const key = merchantKey(txn.description)
+    return db.transactions.filter(t => t.id !== txn.id && t.category !== f.category && merchantKey(t.description) === key)
+  }, [db.transactions, txn, f.category])
   return (
     <Modal title={txn ? 'Edit transaction' : 'Add transaction'} onClose={onClose}
       footer={<>
@@ -46,7 +58,8 @@ export function TxnModal({ txn, onClose }: { txn: Txn | null; onClose(): void })
         <button className="primary" disabled={!valid} onClick={submit}>Save</button>
       </>}>
       <div className="form">
-        <Field label="Description"><input value={f.description} onChange={e => set({ description: e.target.value })} autoFocus={!txn} /></Field>
+        <Field label="Description" hint={txn && merchantName(txn.description) !== txn.description ? `Shown as "${merchantName(txn.description)}"` : undefined}>
+          <input value={f.description} onChange={e => set({ description: e.target.value })} autoFocus={!txn} /></Field>
         <div className="form-row">
           <Field label="Amount (£)"><input inputMode="decimal" value={f.amount} onChange={e => set({ amount: e.target.value })} /></Field>
           <Field label="Direction"><select value={f.out ? 'out' : 'in'} onChange={e => set({ out: e.target.value === 'out' })}><option value="out">Money out</option><option value="in">Money in</option></select></Field>
@@ -56,6 +69,10 @@ export function TxnModal({ txn, onClose }: { txn: Txn | null; onClose(): void })
           <Field label="Account"><select value={f.account_id} onChange={e => set({ account_id: e.target.value })}>{db.accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>
         </div>
         <Field label="Category"><CategorySelect value={f.category} onChange={category => set({ category })} all="Choose automatically" /></Field>
+        {changedCategory && siblings.length > 0 && (
+          <label className="check"><input type="checkbox" checked={applyAll} onChange={e => setApplyAll(e.target.checked)} />
+            Do the same for {siblings.length} other {merchantName(txn!.description)} transaction{siblings.length === 1 ? '' : 's'}, and future ones</label>
+        )}
         <Field label="Notes"><input value={f.notes} onChange={e => set({ notes: e.target.value })} /></Field>
         {receipt && <p className="muted">🧾 Receipt attached: {receipt.merchant}, {money(receipt.total)}</p>}
       </div>
@@ -75,7 +92,7 @@ export default function Transactions() {
     const needle = q.trim().toLowerCase()
     return db.transactions
       .filter(t => (!account || t.account_id === account) && (!category || t.category === category)
-        && (!needle || t.description.toLowerCase().includes(needle) || t.notes.toLowerCase().includes(needle)))
+        && (!needle || t.description.toLowerCase().includes(needle) || merchantName(t.description).toLowerCase().includes(needle) || t.notes.toLowerCase().includes(needle)))
       .sort((a, b) => b.date.localeCompare(a.date))
   }, [db.transactions, q, account, category])
   const days = useMemo(() => {
@@ -85,14 +102,14 @@ export default function Transactions() {
   }, [rows, limit])
 
   return (
-    <Page title="Transactions" actions={<button className="primary" disabled={!db.accounts.length} onClick={() => setEditing('new')}>Add transaction</button>}>
+    <Page title="Transactions" subtitle="Tap one to change its category. Tally remembers for next time." actions={<button className="primary" disabled={!db.accounts.length} onClick={() => setEditing('new')}>Add transaction</button>}>
       <div className="filters">
         <input type="search" placeholder="Search" value={q} onChange={e => setQ(e.target.value)} aria-label="Search transactions" />
         <select value={account} onChange={e => setAccount(e.target.value)} aria-label="Account"><option value="">All accounts</option>{db.accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
         <CategorySelect value={category} onChange={setCategory} all="All categories" />
       </div>
       <div className="card">
-        {!rows.length ? <Empty title="No transactions">Link a bank, import a statement from Accounts, or add one by hand.</Empty> : (
+        {!rows.length ? <Empty title="No transactions" emoji="🔍">Link a bank, import a statement from Accounts, or add one by hand.</Empty> : (
           <>
             <p className="muted">{rows.length} transaction{rows.length === 1 ? '' : 's'}</p>
             {days.map(([date, list]) => (

@@ -31,7 +31,7 @@ export default function Spending() {
     : g === 'year' ? b.label : g === 'month' ? fmtDate(b.from, { month: 'long', year: 'numeric' }) : `${fmtDate(b.from)} – ${fmtDate(b.to)}`
 
   return (
-    <Page title="Spending" actions={
+    <Page title="Spending" subtitle="Tap a bar to see what was inside it." actions={
       <Segmented value={g} onChange={v => { setG(v); setPick(null) }} options={(Object.keys(VIEWS) as Granularity[]).map(k => [k, VIEWS[k].label])} />
     }>
       <div className="grid cols-3">
@@ -40,12 +40,12 @@ export default function Spending() {
         <Stat label={`Average per ${VIEWS[g].unit}`} value={money(avg)} sub={`Over the previous ${data.length - 1} ${VIEWS[g].unit}s`} />
       </div>
       <div className="card">
-        <div className="card-head"><h2>Spending per {VIEWS[g].unit}</h2><span className="muted">Select a bar to see what's inside it</span></div>
+        <div className="card-head"><h2>Spending per {VIEWS[g].unit}</h2></div>
         <Bars data={data} series={SERIES} selected={i} onSelect={setPick} />
       </div>
       <div className="grid cols-2">
         <div className="card"><h2>By category · {range}</h2>
-          {cats.length ? <BarList rows={cats.map(c => ({ label: c.category, value: c.total, sub: `${Math.round((c.total / b.spend) * 100)}%` }))} /> : <Empty title="No spending in this period" />}
+          {cats.length ? <BarList icons rows={cats.map(c => ({ label: c.category, value: c.total, sub: `${Math.round((c.total / b.spend) * 100)}%` }))} /> : <Empty title="No spending in this period" />}
         </div>
         <div className="card"><h2>Biggest purchases · {range}</h2>
           {top.length ? <ul className="list">{top.map(t => <TxnRow key={t.id} t={t} showDate />)}</ul> : <Empty title="No spending in this period" />}

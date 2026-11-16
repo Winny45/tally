@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Empty, Field, Modal, num, Page, Stat } from '../components/ui'
+import { BankDot, Empty, Field, Modal, num, Page, Stat } from '../components/ui'
 import { cashAvailable, netWorth } from '../lib/analytics'
 import { bank } from '../lib/backend'
 import type { BankConnection } from '../lib/backend'
@@ -88,7 +88,7 @@ export default function Accounts() {
   }
 
   return (
-    <Page title="Accounts" actions={<>
+    <Page title="Accounts" subtitle="Everything you have, in one place." actions={<>
       <button onClick={() => s.syncBanks()} disabled={s.syncing}>{s.syncing ? 'Updating…' : 'Update now'}</button>
       <button onClick={() => setEditing('new')}>Add manually</button>
       <button className="primary" onClick={connect}>Link a bank</button>
@@ -99,16 +99,16 @@ export default function Accounts() {
         <Stat label="Savings and investments" value={money(sum(db.accounts.filter(a => a.type === 'savings' || a.type === 'investment').map(a => a.balance)))} />
       </div>
       <div className="card">
-        {!db.accounts.length ? <Empty title="No accounts yet">Link a bank for automatic updates, or add an account by hand and import its statements.</Empty> : (
+        {!db.accounts.length ? <Empty title="No accounts yet" emoji="🏦">Link a bank for automatic updates, or add an account by hand and import its statements.</Empty> : (
           <ul className="list">
             {db.accounts.map(a => (
               <li key={a.id}>
-                <div className="dot" aria-hidden="true">{(a.institution || a.name).charAt(0).toUpperCase()}</div>
+                <BankDot name={a.institution || a.name} />
                 <div className="row-main">
                   <b>{a.name}</b>
                   <small>{a.institution || 'Manual'} · {TYPES.find(t => t[0] === a.type)?.[1]} · {a.source === 'manual' ? 'updated by hand' : ago(a.last_synced)}</small>
                 </div>
-                <span className="badge">{a.source === 'bank' ? 'Linked' : a.source === 'demo' ? 'Demo' : 'Manual'}</span>
+                <span className={`badge hide-sm ${a.source === 'bank' ? 'live' : ''}`}>{a.source === 'bank' ? 'Linked' : a.source === 'demo' ? 'Demo' : 'Manual'}</span>
                 <strong className={`num ${a.balance < 0 ? 'bad' : ''}`}>{money(a.balance)}</strong>
                 {a.source !== 'bank' && <button onClick={() => { importFor.current = a.id; fileRef.current?.click() }}>Import CSV</button>}
                 <button onClick={() => setEditing(a)}>Edit</button>

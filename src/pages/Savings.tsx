@@ -5,7 +5,7 @@ import { useStore } from '../lib/store'
 import type { Budget, Goal } from '../lib/types'
 import { daysBetween, fmtDate, money, money0, monthStart, sum, today, uid } from '../lib/util'
 
-const TAG = { tip: 'Idea', warn: 'Watch', good: 'Going well' }
+const TAG = { tip: '💡', warn: '👀', good: '🎉' }
 
 function BudgetModal({ item, onClose }: { item: Budget | null; onClose(): void }) {
   const { save, remove } = useStore()
@@ -54,12 +54,12 @@ export default function Savings() {
   const possible = sum(tips.map(t => t.saving ?? 0))
 
   return (
-    <Page title="Save money">
+    <Page title="Save money" subtitle="Ideas from your own spending, plus budgets and goals.">
       <div className="card">
         <div className="card-head"><h2>Where you could save</h2>{possible > 0 && <span className="muted">Up to {money0(possible)} a year in total</span>}</div>
         {!tips.length ? <Empty title="Nothing to suggest yet">Once a few weeks of transactions are in, ideas based on your own spending show up here.</Empty> : (
           <div className="grid">{tips.map(t => (
-            <div key={t.title} className={`insight ${t.tone}`}><span className="tag">{TAG[t.tone]}</span><b>{t.title}</b><p>{t.detail}</p></div>
+            <div key={t.title} className={`insight ${t.tone}`}><span className="emoji" aria-hidden="true">{TAG[t.tone]}</span><b>{t.title}</b><p>{t.detail}</p></div>
           ))}</div>
         )}
       </div>

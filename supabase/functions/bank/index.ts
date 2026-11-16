@@ -63,6 +63,13 @@ async function get(path: string, access: string) {
 
 const day = (d: Date) => d.toISOString().slice(0, 10)
 
+// Banks often name an account after its holder or an internal product code; "Monzo current account" reads better.
+function friendlyName(it: Record<string, any>, kind: 'accounts' | 'cards') {
+  const bank = it.provider?.display_name ?? ''
+  const type = kind === 'cards' ? 'credit card' : it.account_type === 'SAVINGS' ? 'savings' : 'current account'
+  return bank ? `${bank} ${type}` : it.display_name ?? 'Account'
+}
+
 async function syncConnection(admin: SupabaseClient, c: Conn): Promise<number> {
   let access = c.access_token
   if (Date.parse(c.expires_at) < Date.now() + 60_000) {
@@ -96,7 +103,7 @@ async function syncConnection(admin: SupabaseClient, c: Conn): Promise<number> {
       } else {
         const { data, error } = await admin.from('accounts').insert({
           user_id: c.user_id, external_id: extId, connection_id: c.id, source: 'bank', last_synced: now,
-          name: it.display_name ?? 'Account', institution: it.provider?.display_name ?? '',
+          name: friendlyName(it, kind), institution: it.provider?.display_name ?? '',
           type: kind === 'cards' ? 'credit' : it.account_type === 'SAVINGS' ? 'savings' : 'current', balance: balance ?? 0,
         }).select('id').single()
         if (error) throw error
