@@ -143,7 +143,21 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       clearTimeout(t)
       t = window.setTimeout(() => void reload().catch(() => {}), 1500)
     }).subscribe()
-    return () => { live = false; void supabase!.removeChannel(ch) }
+    // Phones suspend background apps and drop the live connection, so pull a fresh copy whenever the app is reopened.
+    let last = Date.now()
+    const onShow = () => {
+      if (document.visibilityState !== 'visible' || Date.now() - last < 15_000) return
+      last = Date.now()
+      void reload().catch(() => {})
+    }
+    document.addEventListener('visibilitychange', onShow)
+    window.addEventListener('online', onShow)
+    return () => {
+      live = false
+      document.removeEventListener('visibilitychange', onShow)
+      window.removeEventListener('online', onShow)
+      void supabase!.removeChannel(ch)
+    }
   }, [reload, toast])
 
   // Automatic updates: refresh linked accounts on open, when the app comes back to the front, and every 30 minutes.

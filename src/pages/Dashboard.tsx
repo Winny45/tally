@@ -15,7 +15,7 @@ const SERIES: Series[] = [
 ]
 
 export default function Dashboard() {
-  const { db, replaceAll, syncing, syncBanks } = useStore()
+  const { db, replaceAll, syncing, syncBanks, mode } = useStore()
   const t = today(), m0 = monthStart(t)
   const v = useMemo(() => {
     const spent = spendIn(db.transactions, m0, t)
@@ -35,11 +35,12 @@ export default function Dashboard() {
     return (
       <Page title="Welcome to Tally">
         <div className="card"><Empty title="No accounts yet">
-          Add your accounts to start tracking, or load sample data to look around first.
+          {mode === 'local' ? 'Add your accounts to start tracking, or load sample data to look around first.' : 'Link a bank or add an account to start tracking.'}
         </Empty>
           <div className="actions" style={{ justifyContent: 'center' }}>
             <Link to="/accounts"><button className="primary">Add an account</button></Link>
-            <button onClick={() => replaceAll(demoData())}>Load demo data</button>
+            {/* Sample data is for trying the app out offline; it never goes into a synced account. */}
+            {mode === 'local' && <button onClick={() => replaceAll(demoData())}>Load demo data</button>}
           </div></div>
       </Page>
     )

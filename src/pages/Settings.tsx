@@ -52,7 +52,7 @@ export default function Settings() {
         <div className="actions">
           <button onClick={exportJson}>Download backup</button>
           <button onClick={() => fileRef.current?.click()}>Restore backup</button>
-          <button onClick={async () => { await s.replaceAll(demoData()); s.toast('Demo data loaded') }}>Replace with demo data</button>
+          {s.mode === 'local' && <button onClick={async () => { await s.replaceAll(demoData()); s.toast('Demo data loaded') }}>Replace with demo data</button>}
           {confirm
             ? <button className="danger" onClick={async () => { await s.replaceAll(emptyTables()); setConfirm(false); s.toast('All data cleared') }}>Yes, delete all {count} records</button>
             : <button className="danger" onClick={() => setConfirm(true)}>Clear all data</button>}
