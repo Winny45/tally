@@ -151,8 +151,8 @@ async function bankCall<T>(action: string, extra: Record<string, unknown> = {}):
 const appAddress = () => location.origin + location.pathname
 
 export const bank = {
-  authUrl: (state: string) => bankCall<{ url: string }>('auth-url', { state, redirect: appAddress() }),
-  exchange: (code: string) => bankCall<{ ok: true }>('exchange', { code, redirect: appAddress() }),
+  authUrl: () => bankCall<{ url: string }>('auth-url', { redirect: appAddress() }),
+  exchange: (code: string, state: string) => bankCall<{ ok: true }>('exchange', { code, state, redirect: appAddress() }),
   sync: () => bankCall<{ added: number; errors: string[] }>('sync'),
   connections: () => bankCall<{ connections: BankConnection[] }>('connections'),
   disconnect: (id: string) => bankCall<{ ok: true }>('disconnect', { id }),

@@ -68,9 +68,7 @@ export default function Accounts() {
   const connect = async () => {
     if (s.mode === 'local') return setLocalInfo(true)
     try {
-      const state = uid()
-      sessionStorage.setItem('bank-state', state)
-      location.href = (await bank.authUrl(state)).url
+      location.href = (await bank.authUrl()).url
     } catch (e) { s.toast(`Couldn't start bank link: ${(e as Error).message}`) }
   }
   const onFile = async (file: File | undefined) => {

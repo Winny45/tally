@@ -54,9 +54,9 @@ function Shell() {
     if (!code && !err) return
     history.replaceState(null, '', location.pathname + location.hash)
     if (err) return s.toast(`Bank link cancelled: ${err}`)
-    if (!state || state !== sessionStorage.getItem('bank-state')) return s.toast('Bank link could not be verified. Please try again.')
-    sessionStorage.removeItem('bank-state')
-    bank.exchange(code!).then(() => s.syncBanks()).catch(e => s.toast(`Bank link failed: ${(e as Error).message}`))
+    // The server checks that `state` was issued to this signed-in user, so this works in any tab.
+    s.toast('Finishing bank link…')
+    bank.exchange(code!, state ?? '').then(() => s.syncBanks()).catch(e => s.toast(`Bank link failed: ${(e as Error).message}`))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

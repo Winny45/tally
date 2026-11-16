@@ -19,6 +19,22 @@ const API = `https://api.${DOMAIN}/data/v1`
 const REDIRECTS = env('TRUELAYER_REDIRECT_URI').split(',').map(s => s.trim()).filter(Boolean)
 const redirectFor = (asked: unknown) => (typeof asked === 'string' && REDIRECTS.includes(asked) ? asked : REDIRECTS[0])
 
+// The `state` value that travels to the bank and back is signed for the user who started the link,
+// so the return trip can be verified on any tab or device they are signed in on (no browser storage needed).
+const STATE_TTL_MS = 20 * 60_000
+async function signState(userId: string, ts: string) {
+  const enc = new TextEncoder()
+  const key = await crypto.subtle.importKey('raw', enc.encode(env('SUPABASE_SERVICE_ROLE_KEY')), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(`bank-link.${userId}.${ts}`)))
+  return `${ts}.${[...sig].map(b => b.toString(16).padStart(2, '0')).join('')}`
+}
+async function stateIsValid(userId: string, state: unknown) {
+  if (typeof state !== 'string') return false
+  const ts = state.split('.')[0]
+  const age = Date.now() - Number(ts)
+  return Number.isFinite(age) && age >= 0 && age < STATE_TTL_MS && (await signState(userId, ts)) === state
+}
+
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -157,11 +173,13 @@ Deno.serve(async req => {
         response_type: 'code', client_id: env('TRUELAYER_CLIENT_ID'), redirect_uri: redirectFor(body.redirect),
         scope: 'info accounts balance cards transactions offline_access',
         providers: LIVE ? 'uk-ob-all uk-oauth-all' : 'uk-cs-mock uk-ob-all uk-oauth-all',
-        state: String(body.state ?? ''),
+        state: await signState(user.id, String(Date.now())),
       })
       return json({ url: `${AUTH}/?${q}` })
     }
     if (body.action === 'exchange') {
+      if (!(await stateIsValid(user.id, body.state)))
+        return json({ error: 'This bank link was started more than 20 minutes ago or under a different login. Please start it again.' }, 400)
       const t = await token({ grant_type: 'authorization_code', redirect_uri: redirectFor(body.redirect), code: String(body.code ?? '') })
       const me = (await get('/me', t.access_token).catch(() => []))[0]
       const { error } = await admin.from('bank_connections').insert({
